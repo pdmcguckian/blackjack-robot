@@ -25,7 +25,11 @@ GPIO.setmode(GPIO.BOARD) #rpi gpio setup (.board referencing so using pin number
 GPIO.setup(15, GPIO.IN, pull_up_down=GPIO.PUD_UP) #button pin
 GPIO.setup(7, GPIO.OUT) #button LED
 
-class Worker(QRunnable): #MULTITHREADING WORKER: this was needed so that controlling the motors or triggering delays doesn't use the main GUI thread causing the UI to hang
+class Worker(QRunnable): 
+    """
+    MULTITHREADING WORKER
+    """
+    #this was needed so that controlling the motors or triggering delays doesn't use the main GUI thread causing the UI to hang
     def __init__(self, fn, *args, **kwargs):
         super(Worker, self).__init__()
         self.fn = fn
@@ -66,7 +70,7 @@ class Main(QMainWindow): #MAIN WINDOW
         self.initialise()
 
     def initialise(self):
-        #Ran at start of each game - resets variables and text
+        """Ran at start of each game - resets variables and text"""
         self.playerScore,self.dealerScore,self.playerCards,self.dealerCards = 0,0,0,0
         self.playerCardList = []
         self.dealerCardList = []
@@ -80,7 +84,7 @@ class Main(QMainWindow): #MAIN WINDOW
         
 
     def waitForStart(self):
-        #wait for button press to start
+        """wait for button press to start"""
         GPIO.output(7, 1) #button LED on
         while True:
             button_state = GPIO.input(15)
@@ -89,7 +93,8 @@ class Main(QMainWindow): #MAIN WINDOW
                 GPIO.output(7, 0) #button LED off
                 return self.shuffle() 
                 
-    def shuffle(self): #gui side shuffle
+    def shuffle(self): 
+        """gui side shuffle"""
         self.display(1)
         self.shuffleComplete = False
         # Pass the function to execute
@@ -98,7 +103,7 @@ class Main(QMainWindow): #MAIN WINDOW
         
 
     def shuffleThread(self): 
-        #multithreaded shuffle
+        """multithreaded shuffle"""
         #Connect to Arduino
         ser = serial.Serial('/dev/ttyACM0',9600, timeout = 0.1)
         time.sleep(1)
@@ -120,13 +125,14 @@ class Main(QMainWindow): #MAIN WINDOW
 
 
     def startingDeal(self): 
+        """Deal initial cards, and prepare for hit/stick page"""
         #deal first two cards and read them for both sides
         self.dealerStep.gotoPlayerSide()
         self.dealCard('playerSide') #deal two cards
         self.ui.page2label1.setText("Please take your cards")
         self.dealerStep.gotoDealerSide()
         self.dealCard('dealerSide')
-        #set #'My first card was a ...' text on hit/stick page
+        #set 'My first card was a ...' text on hit/stick page
         if self.dealerCardList[0] == 1:
             self.ui.page3label2.setText('Ace')
         elif self.dealerCardList[0] == 11:
@@ -137,14 +143,14 @@ class Main(QMainWindow): #MAIN WINDOW
             self.ui.page3label2.setText('King')
         else:
             self.ui.page3label2.setText(str(self.dealerCardList[0]))
-
+        #switch to hit or stick
         worker = Worker(self.dealerStep.gotoPlayerSide)
         self.threadpool.start(worker)
         self.display(2)
 
 
     def dealCard(self,X): 
-        #general single card and read method.
+        """general single card deal then read method."""
         worker = Worker(self.dealerDC.dealOneCard)
         self.threadpool.start(worker)
 
@@ -179,11 +185,11 @@ class Main(QMainWindow): #MAIN WINDOW
             print(self.dealerCardList)
     
     def errorPage(self): 
-        #general error trigger
+        """general error trigger"""
         self.display(8)
 
     def roundMainTrigger(self, playerAction): 
-        #GUI side main round trigger
+        """GUI side main round trigger"""
         self.ui.page4label2.setText('???')
         self.display(3)
         self.playerAction = playerAction
@@ -191,7 +197,7 @@ class Main(QMainWindow): #MAIN WINDOW
         self.threadpool.start(worker)
 
     def roundMain(self): 
-        #main round method
+        """main round method"""
         print('round main')
         #playerAction 0 is hit, 1 is stick
         self.roundNum += 1
@@ -218,7 +224,7 @@ class Main(QMainWindow): #MAIN WINDOW
             return self.display(2) #return to hit or stick page
 
     def decision(self,cards):  
-        #Dealer decision method
+        """Dealer decision method, provides 1(hit) or 0(stick) from current cards"""
         if cards == []:
             return 1
         total_val = 340 #total value of all cards
@@ -236,6 +242,7 @@ class Main(QMainWindow): #MAIN WINDOW
             return 1 #stick
         
     def finishGame(self):
+        """finish the game and update running total"""
         self.calculateScore() 
         os.getcwd
         f = open("running_total.txt", 'r+')  #reading then updating running_total txt file for total games won
@@ -255,7 +262,7 @@ class Main(QMainWindow): #MAIN WINDOW
 
 
     def calculateScore(self): 
-        #calculte the player and dealers score and find the winner. Update the gui 
+        """calculte the player and dealers score and find the winner. Update the gui """
         if self.dealerScore >21:
             self.dealerScore = 0
             self.ui.page7label3.setText('BUST')
@@ -282,12 +289,12 @@ class Main(QMainWindow): #MAIN WINDOW
         return
 
     def statisticsPage(self): 
-        #stats page control
+        """stats page control"""
         print("stats")
         self.display(6)
     
     def resetTrigger(self):
-        #reset gui trigger
+        """reset gui trigger"""
         print("PLAY AGAIN")
         self.display(7) #display collect cards message
         worker = Worker(self.reset)
@@ -295,7 +302,7 @@ class Main(QMainWindow): #MAIN WINDOW
 
 
     def reset(self): 
-        #reset game for playing again
+        """reset game for playing again"""
         self.dealerStep.gotoPlayerSide() #deal remaining pack onto player side
         self.dealerDC.dealWholePack()
         time.sleep(10)
@@ -303,7 +310,7 @@ class Main(QMainWindow): #MAIN WINDOW
         self.initialise()
 
     def display(self,i):
-        #display the chosen stacked widget ie the page of the gui
+        """display the chosen stacked widget ie the page of the gui"""
         print('setting index', i)
         self.ui.stackedWidget.setCurrentIndex(i)
 
